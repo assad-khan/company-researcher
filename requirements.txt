@@ -1,6 +1,9 @@
 streamlit
+spider-client
+pandas
+openpyxl
 crewai
-crewai_tools
-openai
 langchain
-python-docx
+requests
+toml
+'crewai[tools]'
