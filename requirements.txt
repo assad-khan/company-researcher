@@ -4,6 +4,3 @@ pandas
 openpyxl
 crewai
 langchain
-requests
-toml
-'crewai[tools]'
