@@ -6,25 +6,14 @@ import json
 from typing import Dict, List
 import tempfile
 import os
-import toml
 from urllib.parse import urlparse
 from langchain_openai import ChatOpenAI as LLM
 from spider import Spider
-# Load secrets
-try:
-    secrets = toml.load("D:\\finalproject\\ai\\secrets.toml")
-    os.environ["OPENAI_API_KEY"] = secrets["OPENAI_API_KEY1"]
-    os.environ["SPIDER_API_KEY"] = secrets["SPIDER_API_KEY"]
-except KeyError as e:
-    st.error(f"Missing key in secrets.toml: {str(e)}")
-except FileNotFoundError:
-    st.error("secrets.toml file not found. Ensure the file is present in the working directory.")
 
 # Utility function to validate URLs
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
-
 
 @tool("Web Content Crawler")
 def crawl_webpage(url: str) -> str:
@@ -154,9 +143,19 @@ def main():
         index=0,
         help="Choose between gpt-4o-mini (default) and llama3.2 from Ollama."
     )
-
+    if model_name == "gpt-4o-mini":
+        open_ai_api_key = st.text_input("OpenAI API Key", type="password")
+        if open_ai_api_key:
+            os.environ["OPENAI_API_KEY"] = open_ai_api_key
+        else:
+            st.error("Please provide an OpenAI API key.")
+    spider_api_key = st.text_input("Spider Crawl API Key", type="password")
+    if spider_api_key:
+        os.environ["SPIDER_API_KEY"] = spider_api_key
+    else:
+        st.error("Please provide a Spider Crawl API key.")
     uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
-
+       
     if uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
@@ -200,6 +199,7 @@ def main():
                         st.error(f"An error occurred: {str(e)}")
         except Exception as e:
             st.error(f"Error reading Excel file: {str(e)}")
+
 
 if __name__ == "__main__":
     main()
