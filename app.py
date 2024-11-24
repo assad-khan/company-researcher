@@ -1,16 +1,17 @@
 import streamlit as st
 import pandas as pd
 from crewai import Agent, Task, Crew, Process
-from crewai_tools import tool
+from crewai_tools import tool, SerperDevTool, ScrapeWebsiteTool
 import json
 from typing import Dict, List
-import tempfile
+from io import BytesIO
 import os
 from urllib.parse import urlparse
 from langchain_openai import ChatOpenAI as LLM
 from spider import Spider
+import sys
+import re
 
-# Utility function to validate URLs
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
@@ -38,8 +39,29 @@ def crawl_webpage(url: str) -> str:
         return crawl_result[0]['content']
     except Exception as e:
         return f"Error crawling {url}: {str(e)}"
-        
-# Business Intelligence Tool with Model Switching
+      
+class StreamToExpander:
+    def __init__(self, expander, buffer_limit=10000):
+        self.expander = expander
+        self.buffer = []
+        self.buffer_limit = buffer_limit
+
+    def write(self, data):
+        # Clean ANSI escape codes from output
+        cleaned_data = re.sub(r'\x1B\[\d+;?\d*m', '', data)
+        if len(self.buffer) >= self.buffer_limit:
+            self.buffer.pop(0)
+        self.buffer.append(cleaned_data)
+
+        if "\n" in data:
+            self.expander.markdown(''.join(self.buffer), unsafe_allow_html=True)
+            self.buffer.clear()
+
+    def flush(self):
+        if self.buffer:
+            self.expander.markdown(''.join(self.buffer), unsafe_allow_html=True)
+            self.buffer.clear()      
+   
 class BusinessIntelligenceScraper:
     def __init__(self, model_name: str):
         self.model_name = model_name
@@ -55,67 +77,118 @@ class BusinessIntelligenceScraper:
     def create_agents(self):
         llm = self.create_llm()
 
-        # Crawler Agent
         crawler_agent = Agent(
             role='Web Crawler',
-            goal='Scrape and crawl web content for company analysis.',
-            backstory='An expert web crawler with access to detailed web scraping tools.',
+            goal='Fetch webpage content accurately and efficiently',
+            backstory='''I am a specialized web crawler that fetches content from webpages.
+            I ensure the content is properly extracted and formatted for analysis.''',
             llm=llm,
             tools=[crawl_webpage],
             verbose=True
         )
-
-        # Analyzer Agent
-        analyzer_agent = Agent(
-            role='Data Analyzer',
-            goal='Analyze scraped data to extract financials, employee info, and other insights.',
-            backstory='A data analyst skilled at processing web content into actionable insights.',
-            llm=llm,
-            verbose=True
+        researcher = Agent(
+            role='Corporate Research Expert',
+            goal=f"Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.",
+            backstory="You are an AI skilled in corporate intelligence, capable of extracting detailed information from multiple data sources, with a focus on providing accurate and organized insights for business analysis. You're especially good at making reasonable estimates when direct data isn't available.",
+            tools=[SerperDevTool(), ScrapeWebsiteTool()],
+            verbose=True,
+            llm=llm
         )
 
-        return crawler_agent, analyzer_agent
+        return crawler_agent, researcher
 
     def process_url(self, url: str) -> Dict:
-        crawler_agent, analyzer_agent = self.create_agents()
+        crawler_agent, researcher = self.create_agents()
 
         # Crawling Task
-        crawl_task = Task(
-            description=f"Crawl and scrape the webpage at {url} using SpiderTool.",
-            expected_output="HTML content of the webpage in markdown format.",
-            agent=crawler_agent
+        crawler_task = Task(
+            description=f'''Analyze the webpage content and extract of {url}:
+            1. Name of person
+            2. Phone number
+            3. Email address
+            4. Social media contacts
+            
+            Return the information in a valid JSON dictionary format with keys:
+            'name', 'phone', 'email', 'social_media'
+            ''',
+            expected_output='''A JSON string containing the following keys:
+            {
+                "name": "extracted name or empty string",
+                "phone": "extracted phone number or empty string",
+                "email": "extracted email or empty string",
+                "social_media": "extracted social media links or empty string"
+            }''',
+            agent=crawler_agent, 
+            verbose = True
         )
 
-        # Analyzing Task
-        analyze_task = Task(
-            description="Analyze scraped content to extract financial data, employee info, services, and competition.",
-            expected_output='''JSON string containing keys: 'financials', 'employees', 'services', 'competition', and 'government_info'.''',
-            agent=analyzer_agent,
-            context=[crawl_task] 
-        )
+        researcher_task = Task(
+            description=f"""Research {url} and answer the following questions:
 
+            1. Show me financial data for this company:
+
+            2. Who works at this company?
+
+            3. What type of software does this company use?
+
+            4. What are all the services they offer?
+
+            5. Who used to work at this company?
+
+            6. Are there any blogs or articles related to this company?
+
+            7. Find all government information about this company:
+
+            8. Who are their competitors or similar companies?
+
+            9. For each type of company, save relevant government websites:
+
+            10. The agent should remember the types of questions and prompts to ask based on the business category, example questions for plumbing companies will be different from ones for finding all supermarkets in a certain city that have organic foods and wheelchair access:
+
+            11. If no direct financials are available, can you find old financial data or similar companies to make an estimate?
+
+            12. Can the AI estimate annual revenue and employee count when information is limited?
+            """,
+                        agent=researcher,
+                        expected_output="""
+            A JSON dictionary containing the following keys:
+            {
+                "name": "extracted name or empty string",
+                "phone": "extracted phone number or empty string",
+                "email": "extracted email or empty string",
+                "social_media": "extracted social media links or empty string"
+                "report": "A structured report answering each question as follows:
+                        1. Financial Data
+                        2. Current Employees
+                        3. Software Used
+                        4. Services and Products Offered
+                        5. Former Employees
+                        6. Media Presence
+                        7. Government Information
+                        8. Competitors and Similar Companies
+                        9. Reference Information for Government Sites
+                        10. Business Category-Specific Prompts
+                        11. Financial Estimates
+                        12. Revenue and Employee Estimates
+
+                        Each section should contain answers or reasoned estimates based on industry standards where direct data is unavailable. Make sure this report is in report format."
+            }"""
+                    )
         # Create crew
         crew = Crew(
-            agents=[crawler_agent, analyzer_agent],
-            tasks=[crawl_task, analyze_task],
+            agents=[crawler_agent, researcher],
+            tasks=[crawler_task, researcher_task],
             process=Process.sequential
         )
 
         # Execute crew
-        result = crew.kickoff(inputs={"url": url})
+        result = crew.kickoff()
 
         try:
             # Parse the analyzer's response as JSON
             extracted_info = json.loads(str(result).replace('```json', '').replace('```', '')) 
         except json.JSONDecodeError as e:
             st.error(f"Failed to parse JSON response: {str(e)}")
-            extracted_info = {
-                'financials': '',
-                'employees': '',
-                'services': '',
-                'competition': '',
-                'government_info': ''
-            }
 
         return extracted_info
 
@@ -131,7 +204,6 @@ def process_urls(urls: List[str], model_name: str) -> pd.DataFrame:
 
     return pd.DataFrame(results)
 
-# Streamlit UI
 def main():
     st.title("Business Intelligence Extractor")
     st.write("Upload an Excel file with URLs to extract business intelligence.")
@@ -154,8 +226,15 @@ def main():
         os.environ["SPIDER_API_KEY"] = spider_api_key
     else:
         st.error("Please provide a Spider Crawl API key.")
+    
+    serper_api_key = st.text_input("Serper API Key", type="password")
+    if serper_api_key:
+        os.environ["SERPER_API_KEY"] = serper_api_key
+    else:
+        st.error("Please provide a Serper API key")
+        
     uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
-       
+    
     if uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
@@ -173,24 +252,22 @@ def main():
 
             if st.button("Extract Business Intelligence"):
                 with st.spinner('Processing URLs...'):
+                    process_output_expander = st.expander("Processing Output:")
+                    sys.stdout = StreamToExpander(process_output_expander)
                     try:
                         results_df = process_urls(urls, model_name)
 
-                        # Create temporary file for download
-                        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-                            results_df.to_excel(tmp.name, index=False)
+                        output = BytesIO()
+                        results_df.to_excel(output, index=False, engine='openpyxl')
+                        output.seek(0)
 
-                            # Create download button
-                            with open(tmp.name, 'rb') as f:
-                                st.download_button(
-                                    label="Download Results",
-                                    data=f,
-                                    file_name="business_intelligence_results.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                )
-
-                            # Clean up temporary file
-                            os.unlink(tmp.name)
+                        # Create download button
+                        st.download_button(
+                            label="Download Results",
+                            data=output,
+                            file_name="business_intelligence_results.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
 
                         # Display results
                         st.write("Extracted Business Intelligence:")
