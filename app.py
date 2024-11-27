@@ -88,7 +88,7 @@ class BusinessIntelligenceScraper:
         )
         researcher = Agent(
             role='Corporate Research Expert',
-            goal=f"Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.",
+            goal=st.session_state.agent_goal,
             backstory="You are an AI skilled in corporate intelligence, capable of extracting detailed information from multiple data sources, with a focus on providing accurate and organized insights for business analysis. You're especially good at making reasonable estimates when direct data isn't available.",
             tools=[SerperDevTool(), ScrapeWebsiteTool()],
             verbose=True,
@@ -232,16 +232,25 @@ def main():
         os.environ["SERPER_API_KEY"] = serper_api_key
     else:
         st.error("Please provide a Serper API key")
-        
-    uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
+    st.session_state.agent_goal = st.text_area("Edit agent goal as you want", value='''Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.''')
+    model_name = st.radio(
+        "Select input url way",
+        options=["Excel File", "Give Input"],
+        index=0,
+        help="Choose between upload excel file or give input"
+    )
+    if model_name == 'Excel File':
+        uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
+    else:
+        urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")
     
-    if uploaded_file is not None:
+    
+    if model_name == 'Excel File' and uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
             if 'url' not in df.columns:
                 st.error("The Excel file must contain a column named 'url'.")
                 return
-
             urls = df['url'].tolist()
 
             # Validate URLs
@@ -249,33 +258,36 @@ def main():
             if invalid_urls:
                 st.error(f"Invalid URLs detected: {', '.join(invalid_urls)}")
                 return
-
-            if st.button("Extract Business Intelligence"):
-                with st.spinner('Processing URLs...'):
-                    process_output_expander = st.expander("Processing Output:")
-                    sys.stdout = StreamToExpander(process_output_expander)
-                    try:
-                        results_df = process_urls(urls, model_name)
-
-                        output = BytesIO()
-                        results_df.to_excel(output, index=False, engine='openpyxl')
-                        output.seek(0)
-
-                        # Create download button
-                        st.download_button(
-                            label="Download Results",
-                            data=output,
-                            file_name="business_intelligence_results.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
-
-                        # Display results
-                        st.write("Extracted Business Intelligence:")
-                        st.dataframe(results_df)
-                    except Exception as e:
-                        st.error(f"An error occurred: {str(e)}")
         except Exception as e:
-            st.error(f"Error reading Excel file: {str(e)}")
+            st.error(f"Error reading Excel file: {str(e)}")    
+            
+    elif model_name == 'Give Input' and urls is not None:
+            urls = [url for url in urls.split('\n') if url.strip()]
+            
+    if st.button("Extract Business Intelligence"):
+        with st.spinner('Processing URLs...'):
+            process_output_expander = st.expander("Processing Output:")
+            sys.stdout = StreamToExpander(process_output_expander)
+            try:
+                results_df = process_urls(urls, model_name)
+
+                output = BytesIO()
+                results_df.to_excel(output, index=False, engine='openpyxl')
+                output.seek(0)
+
+                # Create download button
+                st.download_button(
+                    label="Download Results",
+                    data=output,
+                    file_name="business_intelligence_results.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+                # Display results
+                st.write("Extracted Business Intelligence:")
+                st.dataframe(results_df)
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")   
 
 
 if __name__ == "__main__":
