@@ -74,10 +74,8 @@ class BusinessIntelligenceScraper:
                 base_url="http://localhost:11434"
             )
         
-        # if self.model_name == "Groq":
-        #     return ChatGroq(model_name="llama-3.2-1b-preview")
-        
-        
+        if self.model_name == "Groq":
+            return ChatGroq(model_name="llama-3.2-1b-preview")
         
         return LLM(model="gpt-4o-mini")
 
