@@ -246,19 +246,19 @@ def main():
     else:
         st.error("Please provide a Serper API key")
     st.session_state.agent_goal = st.text_area("Edit agent goal as you want", value='''Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.''')
-    model_name = st.radio(
+    input_url_way = st.radio(
         "Select input url way",
         options=["Excel File", "Give Input"],
         index=0,
         help="Choose between upload excel file or give input"
     )
-    if model_name == 'Excel File':
+    if input_url_way == 'Excel File':
         uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
     else:
         urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")
     
     
-    if model_name == 'Excel File' and uploaded_file is not None:
+    if input_url_way == 'Excel File' and uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
             if 'url' not in df.columns:
@@ -274,7 +274,7 @@ def main():
         except Exception as e:
             st.error(f"Error reading Excel file: {str(e)}")    
             
-    elif model_name == 'Give Input' and urls is not None:
+    elif input_url_way == 'Give Input' and urls is not None:
         urls = [url for url in urls.split('\n') if url.strip()]
             
     if st.button("Extract Business Intelligence"):
