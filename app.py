@@ -75,7 +75,7 @@ class BusinessIntelligenceScraper:
             )
         
         if self.model_name == "Groq":
-            return ChatGroq(model_name="llama-3.2-1b-preview", provider="ollama") 
+            return ChatGroq(model_name="llama-3.1-70b-versatile",)
         
         return LLM(model="gpt-4o-mini")
 
