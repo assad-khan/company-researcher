@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI as LLM
 from spider import Spider
 import sys
 import re
+from langchain_groq import ChatGroq
 
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
@@ -72,6 +73,12 @@ class BusinessIntelligenceScraper:
                 model="ollama/llama3.2",
                 base_url="http://localhost:11434"
             )
+        
+        # if self.model_name == "Groq":
+        #     return ChatGroq(model_name="llama-3.2-1b-preview")
+        
+        
+        
         return LLM(model="gpt-4o-mini")
 
     def create_agents(self):
@@ -211,7 +218,7 @@ def main():
     # Model selection switch
     model_name = st.radio(
         "Select AI Model",
-        options=["gpt-4o-mini", "llama3.2"],
+        options=["gpt-4o-mini", "llama3.2", "Groq"],
         index=0,
         help="Choose between gpt-4o-mini (default) and llama3.2 from Ollama."
     )
@@ -221,6 +228,14 @@ def main():
             os.environ["OPENAI_API_KEY"] = open_ai_api_key
         else:
             st.error("Please provide an OpenAI API key.")
+            
+    if model_name == "Groq":
+        groq_api_key = st.text_input("Groq API Key", type="password")
+        if groq_api_key:
+            os.environ["GROQ_API_KEY"] = groq_api_key
+        else:
+            st.error("Please provide a Groq API key.")
+            
     spider_api_key = st.text_input("Spider Crawl API Key", type="password")
     if spider_api_key:
         os.environ["SPIDER_API_KEY"] = spider_api_key
@@ -262,7 +277,7 @@ def main():
             st.error(f"Error reading Excel file: {str(e)}")    
             
     elif model_name == 'Give Input' and urls is not None:
-            urls = [url for url in urls.split('\n') if url.strip()]
+        urls = [url for url in urls.split('\n') if url.strip()]
             
     if st.button("Extract Business Intelligence"):
         with st.spinner('Processing URLs...'):
