@@ -75,9 +75,10 @@ class BusinessIntelligenceScraper:
             )
         
         if self.model_name == "Groq":
-            return ChatGroq(model_name="llama-3.2-1b-preview")
+            return ChatGroq(model_name="llama-3.2-1b-preview", provider="ollama") 
         
         return LLM(model="gpt-4o-mini")
+
 
     def create_agents(self):
         llm = self.create_llm()
@@ -233,7 +234,7 @@ def main():
             os.environ["GROQ_API_KEY"] = groq_api_key
         else:
             st.error("Please provide a Groq API key.")
-            
+
     spider_api_key = st.text_input("Spider Crawl API Key", type="password")
     if spider_api_key:
         os.environ["SPIDER_API_KEY"] = spider_api_key
