@@ -1,13 +1,13 @@
 import streamlit as st
 import pandas as pd
-from crewai import Agent, Task, Crew, Process
+from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import tool, SerperDevTool, ScrapeWebsiteTool
 import json
 from typing import Dict, List
 from io import BytesIO
 import os
 from urllib.parse import urlparse
-from langchain_openai import ChatOpenAI as LLM
+from langchain_openai import ChatOpenAI 
 from spider import Spider
 import sys
 import re
@@ -69,15 +69,16 @@ class BusinessIntelligenceScraper:
 
     def create_llm(self):
         if self.model_name == "llama3.2":
-            return LLM(
+            return ChatOpenAI(
                 model="ollama/llama3.2",
                 base_url="http://localhost:11434"
             )
         
         if self.model_name == "Groq":
-            return ChatGroq(model_name="llama-3.1-70b-versatile",)
+            return LLM(model="groq/llama3-8b-8192", 
+                       api_key=st.session_state.groq_api_key)
         
-        return LLM(model="gpt-4o-mini")
+        return ChatOpenAI(model="gpt-4o-mini")
 
 
     def create_agents(self):
@@ -231,7 +232,7 @@ def main():
     if model_name == "Groq":
         groq_api_key = st.text_input("Groq API Key", type="password")
         if groq_api_key:
-            os.environ["GROQ_API_KEY"] = groq_api_key
+            st.session_state.groq_api_key = groq_api_key
         else:
             st.error("Please provide a Groq API key.")
 

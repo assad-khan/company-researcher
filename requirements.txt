@@ -4,4 +4,3 @@ pandas
 openpyxl
 crewai
 langchain
-langchain-groq
