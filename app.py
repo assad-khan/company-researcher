@@ -11,7 +11,6 @@ from langchain_openai import ChatOpenAI
 from spider import Spider
 import sys
 import re
-from langchain_groq import ChatGroq
 
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
@@ -75,7 +74,7 @@ class BusinessIntelligenceScraper:
             )
         
         if self.model_name == "Groq":
-            return LLM(model="groq/llama3-8b-8192", 
+            return LLM(model="groq/llama-3.2-1b-preview", 
                        api_key=st.session_state.groq_api_key)
         
         return ChatOpenAI(model="gpt-4o-mini")
