@@ -232,7 +232,7 @@ class BusinessIntelligenceScraper:
             return [crawler_agent, researcher], [crawler_task, researcher_task] 
             
     def process_url(self, url: str) -> Dict:
-        agent_list, task_list = self.self.create_tasks(url)
+        agent_list, task_list = self.create_tasks(url)
         
         # Create crew
         crew = Crew(
