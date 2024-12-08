@@ -284,7 +284,7 @@ def similar_comapnies_url_find(url, model_name):
         description=(
             f"Analyze the company URL {url} and identify companies that are "
             "similar in terms of industry, size, or offerings. Use available online resources "
-            "to compile a list of similar companies' URLs. "
+            "to compile a list of three similar companies' URLs. "
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -295,7 +295,7 @@ def similar_comapnies_url_find(url, model_name):
             "}"
         ),
         expected_output=(
-            "A JSON dictionary containing a list of URLs for companies similar to the given company."
+            "A JSON dictionary containing a list  of URLs for companies similar to the given company."
         ),
         agent=company_analysis_agent,
     )
