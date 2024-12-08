@@ -68,7 +68,7 @@ class BusinessIntelligenceScraper:
         self.input_way = input_way
 
     def create_agents(self):
-        llm = create_llm(self, self.model_name)
+        llm = create_llm(self.model_name)
 
         crawler_agent = Agent(
             role='Web Crawler',
