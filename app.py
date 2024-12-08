@@ -322,12 +322,15 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
     """Process multiple URLs and return results as a DataFrame."""
     scraper = BusinessIntelligenceScraper(model_name, input_way_data)
     if input_way_data == 'Find Similar Companies':
-        similar_comp = similar_comapnies_url_find(url, model_name)
-        urls = similar_comp.get('similar_companies', [])
-        st.success(f'links: {urls}')
-        if not urls:
-            st.warning('No similar company find')
-            
+        url_list = []
+        for url in urls:
+            similar_comp = similar_comapnies_url_find(url, model_name)
+            urlss = similar_comp.get('similar_companies', [])
+            url_list.append(urlss)
+            st.success(f'links: {urlss}')
+            if not urls:
+                st.warning('No similar company find')
+        urls = url_list
     results = []
 
     for url in urls:
