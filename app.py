@@ -518,10 +518,10 @@ def main():
     else:
         st.error("Please provide a Serper API key")
     st.session_state.agent_goal = st.text_area("Edit agent goal as you want", value='''Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.''')
+    st.write("Select any two options, but one must be from the first two.")
     excel_file_selected = st.checkbox("Excel File")
     give_input_selected = st.checkbox("Give Input")
     find_similar_selected = st.checkbox("Find Similar Companies")
-    st.write("Select any two options, but one must be from the first two.")
     
     if not excel_file_selected and not give_input_selected:
         st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
