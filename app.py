@@ -61,7 +61,145 @@ class StreamToExpander:
         if self.buffer:
             self.expander.markdown(''.join(self.buffer), unsafe_allow_html=True)
             self.buffer.clear()      
-   
+
+class CompanyViewer:
+    def __init__(self, data):
+        """
+        Initialize the CompanyViewer with a data dictionary.
+        
+        :param data: Dictionary containing company information.
+        """
+        self.companies = data['companies']
+        if 'company_data' not in st.session_state:
+            st.session_state.company_data = None
+            st.session_state.current_page = 1
+    
+    @staticmethod
+    def _format_attribute_name(attr):
+        """
+        Format attribute names by capitalizing each word and removing underscores.
+        
+        :param attr: Attribute name as a string.
+        :return: Formatted attribute name.
+        """
+        words = attr.split('_')
+        formatted_words = [word.capitalize() for word in words]
+        return ' '.join(formatted_words)
+    
+    @staticmethod
+    def _flatten_dict(d, parent_key='', sep='_'):
+        """
+        Flatten a nested dictionary into a flat dictionary with concatenated keys.
+        
+        :param d: Dictionary to flatten.
+        :param parent_key: Parent key to prepend to the current keys.
+        :param sep: Separator for concatenated keys.
+        :return: Flattened dictionary.
+        """
+        items = []
+        for k, v in d.items():
+            new_key = f"{parent_key}{sep}{k}" if parent_key else k
+            if isinstance(v, dict):
+                items.extend(CompanyViewer._flatten_dict(v, new_key, sep=sep).items())
+            elif isinstance(v, list):
+                items.append((new_key, ', '.join(map(str, v)) if v else 'N/A'))
+            else:
+                items.append((new_key, str(v) if v is not None else 'N/A'))
+        return dict(items)
+    
+    def _company_to_dataframe(self, company):
+        """
+        Convert a company dictionary to a flat key-value DataFrame.
+        
+        :param company: Dictionary representing a company.
+        :return: DataFrame containing flattened company data.
+        """
+        flattened = self._flatten_dict(company)
+        df = pd.DataFrame.from_dict(flattened, orient='index', columns=['Value'])
+        df.index = [self._format_attribute_name(idx) for idx in df.index]
+        df.index.name = 'Attribute'
+        return df.reset_index()
+    
+    def render(self):
+        """
+        Render the Streamlit interface for viewing company data.
+        """
+        # Custom CSS
+        st.markdown("""
+        <style>
+        .stDataFrame {
+            width: 100%;
+            background-color: #f0f2f6;
+            border-radius: 10px;
+        }
+        .stDataFrame th {
+            background-color: #3498db;
+            color: white !important;
+            word-break: break-word;
+            white-space: normal;
+        }
+        .stDataFrame tr:nth-child(even) {
+            background-color: #f1f3f6;
+        }
+        .stDataFrame tr:hover {
+            background-color: #e6e6e6;
+        }
+        .stDataFrame td {
+            word-break: break-word !important;
+            white-space: normal !important;
+            max-width: 300px;
+            overflow-wrap: break-word;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
+        # Company selection
+        selected_company_name = st.selectbox(
+            "Select a Company", 
+            [company['company_name'] for company in self.companies]
+        )
+        
+        # Find selected company
+        selected_company = next(
+            (company for company in self.companies if company['company_name'] == selected_company_name), 
+            None
+        )
+        
+        # Update session state if company changes
+        if selected_company != st.session_state.company_data:
+            st.session_state.company_data = selected_company
+            st.session_state.current_page = 1
+        
+        if selected_company:
+            df = self._company_to_dataframe(selected_company)
+            
+            # Pagination
+            items_per_page = 10
+            total_items = len(df)
+            total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col1:
+                if st.button("Previous Page", key="prev_page", 
+                             disabled=st.session_state.current_page <= 1):
+                    st.session_state.current_page -= 1
+            with col2:
+                st.write(f"Page {st.session_state.current_page} of {total_pages}")
+            with col3:
+                if st.button("Next Page", key="next_page", 
+                             disabled=st.session_state.current_page >= total_pages):
+                    st.session_state.current_page += 1
+            
+            st.session_state.current_page = max(1, min(st.session_state.current_page, total_pages))
+            start_idx = (st.session_state.current_page - 1) * items_per_page
+            end_idx = min(start_idx + items_per_page, total_items)
+            
+            st.dataframe(
+                df.iloc[start_idx:end_idx],
+                hide_index=True,
+                use_container_width=True,
+            )
+
 class BusinessIntelligenceScraper:
     def __init__(self, model_name: str, input_way: str):
         self.model_name = model_name
@@ -335,6 +473,9 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
 
     for url in urls:
         info = scraper.process_url(url)
+        viewer = CompanyViewer(info)
+        viewer.render()
+        
         info['url'] = url
         results.append(info)
 
@@ -377,26 +518,24 @@ def main():
     else:
         st.error("Please provide a Serper API key")
     st.session_state.agent_goal = st.text_area("Edit agent goal as you want", value='''Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.''')
-    input_url_way = st.radio(
-        "Select input url way",
-        options=["Excel File", "Give Input"],
-        index=0,
-        help="Choose between upload excel file or give input"
-    )
-    similar_company  = st.radio(
-        "Do you want to find similar companies?",
-        options=["Find Similar Companies", "Don't Find Similar Companies"],
-        index=0,
-        help="Choose between find similar companies or don't find similar companies"
-    )
+    excel_file_selected = st.checkbox("Excel File")
+    give_input_selected = st.checkbox("Give Input")
+    find_similar_selected = st.checkbox("Find Similar Companies")
+    st.write("Select any two options, but one must be from the first two.")
     
-    if input_url_way == 'Excel File':
-        uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
+    if not excel_file_selected and not give_input_selected:
+        st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
+    elif excel_file_selected and give_input_selected:
+        st.error("You must select one 'Excel File' or 'Give Input'")
     else:
-        urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")
-    
-    
-    if input_url_way == 'Excel File' and uploaded_file is not None:
+        if excel_file_selected:
+            uploaded_file = st.file_uploader("Choose an Excel file", type=['xlsx'])
+        if give_input_selected:
+            urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")            
+        if find_similar_selected is True:
+            similar_company = 'Find Similar Companies'
+
+    if excel_file_selected and uploaded_file is not None:
         try:
             df = pd.read_excel(uploaded_file)
             if 'url' not in df.columns:
@@ -412,7 +551,7 @@ def main():
         except Exception as e:
             st.error(f"Error reading Excel file: {str(e)}")    
             
-    elif input_url_way == 'Give Input' and urls is not None:
+    elif give_input_selected and urls is not None:
         urls = [url for url in urls.split('\n') if url.strip()]
     
             
@@ -437,7 +576,8 @@ def main():
 
                 # Display results
                 st.write("Extracted Business Intelligence:")
-                st.dataframe(results_df)
+                if find_similar_selected is not True:
+                    st.dataframe(results_df)
             except Exception as e:
                 st.error(f"An error occurred: {str(e)}")   
 
