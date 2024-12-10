@@ -384,7 +384,7 @@ class BusinessIntelligenceScraper:
 
         try:
             # Parse the analyzer's response as JSON
-            extracted_info = json.loads(str(result).replace('```json', '').replace('```', '')) 
+            extracted_info = eval(str(result).replace('```json', '').replace('```', '').strip()) 
         except json.JSONDecodeError as e:
             st.error(f"Failed to parse JSON response: {str(e)}")
 
