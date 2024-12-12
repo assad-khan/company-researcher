@@ -422,7 +422,7 @@ def similar_comapnies_url_find(url, model_name):
         description=(
             f"Analyze the company URL {url} and identify companies that are "
             "similar in terms of industry, size, or offerings. Use available online resources "
-            "to compile a list of three similar companies' URLs. "
+            f"to compile a list of {st.session_state.comp_num} similar companies' URLs. "
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -522,7 +522,7 @@ def main():
     excel_file_selected = st.checkbox("Excel File")
     give_input_selected = st.checkbox("Give Input")
     find_similar_selected = st.checkbox("Find Similar Companies")
-    
+    st.session_state.comp_num = st.number_input("Number of similar companies to extract", min_value=1, max_value=10, value=1)
     if not excel_file_selected and not give_input_selected:
         st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
     elif excel_file_selected and give_input_selected:
