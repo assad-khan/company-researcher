@@ -422,7 +422,7 @@ def similar_comapnies_url_find(url, model_name):
         description=(
             f"Analyze the company URL {url} and identify companies that are "
             "similar in terms of industry, size, or offerings. Use available online resources "
-            f"to compile a list of {st.session_state.comp_num} similar companies' URLs. "
+            "to compile a list of three similar companies' URLs. "
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -450,7 +450,9 @@ def similar_comapnies_url_find(url, model_name):
 
     try:
         # Parse the analyzer's response as JSON
-        extracted_info = json.loads(str(result).replace('```json', '').replace('```', '')) 
+        extracted_info = re.findall(r'\[.*?\]', str(result))
+        if extracted_info:
+            extracted_info = eval(extracted_info[0]) 
     except json.JSONDecodeError as e:
         st.error(f"Failed to parse JSON response: {str(e)}")
 
@@ -458,20 +460,20 @@ def similar_comapnies_url_find(url, model_name):
     
 def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFrame:
     """Process multiple URLs and return results as a DataFrame."""
+    input_url = urls
     scraper = BusinessIntelligenceScraper(model_name, input_way_data)
     if input_way_data == 'Find Similar Companies':
         url_list = []
         for url in urls:
             similar_comp = similar_comapnies_url_find(url, model_name)
-            urlss = similar_comp.get('similar_companies', [])
-            url_list.append(urlss)
-            st.success(f'links: {urlss}')
-            if not urls:
+            url_list.append(similar_comp)
+            st.success(f'links: {similar_comp}')
+            if not similar_comp:
                 st.warning('No similar company find')
-        urls = url_list
+        input_url = url_list
     results = []
 
-    for url in urls:
+    for url in input_url:
         info = scraper.process_url(url)
         viewer = CompanyViewer(info)
         viewer.render()
