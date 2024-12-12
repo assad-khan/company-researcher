@@ -69,7 +69,7 @@ class CompanyViewer:
         
         :param data: Dictionary containing company information.
         """
-        self.companies = data['companies']
+        self.companies = data
         if 'company_data' not in st.session_state:
             st.session_state.company_data = None
             st.session_state.current_page = 1
@@ -247,7 +247,7 @@ class BusinessIntelligenceScraper:
             company_resecher_agent = self.create_agents()
             company_research_task = Task(
                 description=(
-                    f"Conduct comprehensive research on the {url}. "
+                    f"Conduct comprehensive research on the {url} of company website."
                     "Gather the following details:\n"
                     "- Company name\n"
                     "- Website\n"
@@ -283,8 +283,8 @@ class BusinessIntelligenceScraper:
                     "- Word cloud (25-50 words)\n"
                 ),
                 expected_output=(
-                    "A structured report containing all the requested details about the company. "
-                    "The output must be well-organized and include all the specified data points. Also output must be in a valid JSON format."
+                    "A structured report containing all the requested details about the only company link provided."
+                    "The output must be a valid JSON dictionary with keys corresponding to the requested details."
                 ),
                 agent=company_resecher_agent,
             )
@@ -474,12 +474,11 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
     results = []
     for url in input_urls:
         info = scraper.process_url(url)
-        viewer = CompanyViewer(info)
-        viewer.render()
         
-        info['url'] = url
+        info['url_search_compamy'] = url
         results.append(info)
-
+    viewer = CompanyViewer(results)
+    viewer.render()
     return pd.DataFrame(results)
 
 def main():
