@@ -422,7 +422,7 @@ def similar_comapnies_url_find(url, model_name):
         description=(
             f"Analyze the company URL {url} and identify companies that are "
             "similar in terms of industry, size, or offerings. Use available online resources "
-            "to compile a list of three similar companies' URLs. "
+            f"to compile a list of {st.session_state.comp_num} similar companies' URLs. "
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -450,9 +450,10 @@ def similar_comapnies_url_find(url, model_name):
 
     try:
         # Parse the analyzer's response as JSON
-        extracted_info = re.findall(r'\[.*?\]', str(result))
+        extracted_info = re.findall(r'"https?://[^"]+"', str(result)) 
         if extracted_info:
-            extracted_info = eval(extracted_info[0]) 
+            extracted_info = [url.strip('"') for url in extracted_info]
+            
     except json.JSONDecodeError as e:
         st.error(f"Failed to parse JSON response: {str(e)}")
 
@@ -460,20 +461,18 @@ def similar_comapnies_url_find(url, model_name):
     
 def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFrame:
     """Process multiple URLs and return results as a DataFrame."""
-    input_url = urls
+    input_urls = urls
     scraper = BusinessIntelligenceScraper(model_name, input_way_data)
     if input_way_data == 'Find Similar Companies':
-        url_list = []
         for url in urls:
             similar_comp = similar_comapnies_url_find(url, model_name)
-            url_list.append(similar_comp)
-            st.success(f'links: {similar_comp}')
-            if not similar_comp:
+            input_urls = similar_comp
+            st.success(f'links: {input_urls}')
+            if not urls:
                 st.warning('No similar company find')
-        input_url = url_list
+    
     results = []
-
-    for url in input_url:
+    for url in input_urls:
         info = scraper.process_url(url)
         viewer = CompanyViewer(info)
         viewer.render()
@@ -524,7 +523,7 @@ def main():
     excel_file_selected = st.checkbox("Excel File")
     give_input_selected = st.checkbox("Give Input")
     find_similar_selected = st.checkbox("Find Similar Companies")
-    st.session_state.comp_num = st.number_input("Number of similar companies to extract", min_value=1, max_value=10, value=1)
+    
     if not excel_file_selected and not give_input_selected:
         st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
     elif excel_file_selected and give_input_selected:
@@ -536,6 +535,7 @@ def main():
             urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")            
         if find_similar_selected is True:
             similar_company = 'Find Similar Companies'
+    st.session_state.comp_num = st.number_input("Number of similar companies to extract", min_value=1, max_value=10, value=1)
 
     if excel_file_selected and uploaded_file is not None:
         try:
