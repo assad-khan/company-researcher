@@ -69,7 +69,7 @@ class CompanyViewer:
         
         :param data: Dictionary containing company information.
         """
-        self.companies = data
+        self.companies = data 
         if 'company_data' not in st.session_state:
             st.session_state.company_data = None
             st.session_state.current_page = 1
@@ -283,8 +283,58 @@ class BusinessIntelligenceScraper:
                     "- Word cloud (25-50 words)\n"
                 ),
                 expected_output=(
-                    "A structured report containing all the requested details about the only company link provided."
-                    "The output must be a valid JSON dictionary with keys corresponding to the requested details."
+                    "A structured report containing all the requested details about the only only provided."
+                    "The output must be a valid JSON dictionary with keys corresponding to the requested details"
+                    "For Example:"
+                    '''{
+                        "Company name": "Example Corp",
+                        "Website": "https://example.com",
+                        "Year established": 1998,
+                        "Estimated employees": "100-500",
+                        "Estimated annual revenue": "$10M-$50M",
+                        "General company email": "info@example.com",
+                        "Additional company email": "press@example.com",
+                        "Phone number 1": "+123456789",
+                        "Phone number 2": "+987654321",
+                        "Fax Number": "+123456788",
+                        "Address from the website": "123 Example Street, City, Country",
+                        "Website summary": "Example Corp is a leading provider of innovative solutions.",
+                        "Services provided": ["Service 1", "Service 2"],
+                        "Official address if different": "456 Official Lane, City, Country",
+                        "Map": "https://maps.google.com/example",
+                        "Company LinkedIn": "https://linkedin.com/company/example",
+                        "Website contact us form link": "https://example.com/contact",
+                        "List of all employees": [
+                            {"Name": "John Smith", "Title": "CEO", "Email": "john.smith@example.com", "LinkedIn": "https://linkedin.com/in/john"}
+                        ],
+                        "Twitter/X": {"URL": "https://twitter.com/example", "# of posts": 200, "# of followers": 10000, "Summary": "Tech innovations."},
+                        "Instagram": {"URL": "https://instagram.com/example", "# of posts": 150, "# of followers": 8000, "Summary": "Visual highlights."},
+                        "Facebook page": {"URL": "https://facebook.com/example", "# of posts": 300},
+                        "List of similar companies/Competitors": ["Competitor 1", "Competitor 2"],
+                        "Services they need": ["Service A", "Service B"],
+                        "Services they use": ["Service C", "Service D"],
+                        "List of their current customers": ["Customer 1", "Customer 2"],
+                        "News": ["News article 1", "News article 2"],
+                        "Press releases": ["Press release 1", "Press release 2"],
+                        "Blogs": ["Blog post 1", "Blog post 2"],
+                        "Events - virtual": ["Event 1", "Event 2"],
+                        "Events - In person": ["Event 3", "Event 4"],
+                        "Trade Shows": ["Trade show 1", "Trade show 2"],
+                        "Funding, stock market, financials": {"Funding": "$1M", "Stock market": "NASDAQ:EXMP", "Estimated Value": "$100M"},
+                        "Revenue": "$50M",
+                        "Job postings": [{"Title": "Software Engineer", "Summary": "Develop innovative solutions."}],
+                        "EIN": "12-3456789",
+                        "SIC Code": "1234",
+                        "NAICS Code": "5678",
+                        "SIC Description": "Software Development",
+                        "Longitude": "12.3456",
+                        "Latitude": "78.9012",
+                        "Use case 1": "Summarize from website.",
+                        "Customer testimonial 1": "Great service!",
+                        "Customer review": "Positive reviews from customers.",
+                        "Ratings overall": 4.5,
+                        "Word cloud": ["innovation", "technology", "solutions"]
+                    }'''
                 ),
                 agent=company_resecher_agent,
             )
@@ -474,8 +524,6 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
     results = []
     for url in input_urls:
         info = scraper.process_url(url)
-        
-        info['url_search_compamy'] = url
         results.append(info)
     viewer = CompanyViewer(results)
     viewer.render()
