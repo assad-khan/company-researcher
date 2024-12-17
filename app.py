@@ -106,7 +106,6 @@ class CompanyViewer:
             else:
                 items.append((new_key, str(v) if v is not None else 'N/A'))
         return dict(items)
-    
     def _company_to_dataframe(self, company):
         """
         Convert a company dictionary to a flat key-value DataFrame.
@@ -156,12 +155,12 @@ class CompanyViewer:
         # Company selection
         selected_company_name = st.selectbox(
             "Select a Company", 
-            [company['company_name'] for company in self.companies]
+            [company['Company name'] for company in self.companies]
         )
         
         # Find selected company
         selected_company = next(
-            (company for company in self.companies if company['company_name'] == selected_company_name), 
+            (company for company in self.companies if company['Company name'] == selected_company_name), 
             None
         )
         
@@ -434,12 +433,20 @@ class BusinessIntelligenceScraper:
 
         try:
             # Parse the analyzer's response as JSON
-            extracted_info = eval(str(result).replace('```json', '').replace('```', '').strip()) 
+            if st.session_state.s_c == 'Find Similar Companies':
+                extracted_info = re.findall(r'\{.*?\]\}', str(result).replace('\n', '')) 
+                if extracted_info:
+                    extracted_info = eval(extracted_info[0])
+                    return extracted_info
+
+            else:
+                extracted_info = eval(str(result).replace('```json', '').replace('```', '').strip())
+                return extracted_info
+                
         except json.JSONDecodeError as e:
             st.error(f"Failed to parse JSON response: {str(e)}")
-
-        return extracted_info
-
+            return {}
+        
 def create_llm(model_name):
         if model_name == "llama3.2":
             return ChatOpenAI(
@@ -473,6 +480,7 @@ def similar_comapnies_url_find(url, model_name):
             f"Analyze the company URL {url} and identify companies that are "
             "similar in terms of industry, size, or offerings. Use available online resources "
             f"to compile a list of {st.session_state.comp_num} similar companies' URLs. "
+            "give similar companies you find a link to their main website."
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -483,7 +491,7 @@ def similar_comapnies_url_find(url, model_name):
             "}"
         ),
         expected_output=(
-            "A JSON dictionary containing a list  of URLs for companies similar to the given company."
+            f"A JSON dictionary containing a list  of URLs for {st.session_state.comp_num} companies similar to the given company."
         ),
         agent=company_analysis_agent,
     )
@@ -523,10 +531,17 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
     
     results = []
     for url in input_urls:
-        info = scraper.process_url(url)
-        results.append(info)
-    viewer = CompanyViewer(results)
-    viewer.render()
+        try:
+            info = scraper.process_url(url)
+            if info:
+                results.append(info)
+        except Exception as e:
+            st.error(f"Error processing URL {url}: {e}")
+    try:
+        viewer = CompanyViewer(results)
+        viewer.render()
+    except Exception as e:
+        st.error(f"Error rendering company viewer: {e}")
     return pd.DataFrame(results)
 
 def main():
@@ -570,6 +585,8 @@ def main():
     excel_file_selected = st.checkbox("Excel File")
     give_input_selected = st.checkbox("Give Input")
     find_similar_selected = st.checkbox("Find Similar Companies")
+    if find_similar_selected is True:
+        st.session_state.s_c = find_similar_selected
     
     if not excel_file_selected and not give_input_selected:
         st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
