@@ -304,7 +304,10 @@ class BusinessIntelligenceScraper:
                         "Company LinkedIn": "https://linkedin.com/company/example",
                         "Website contact us form link": "https://example.com/contact",
                         "List of all employees": [
-                            {"Name": "John Smith", "Title": "CEO", "Email": "john.smith@example.com", "LinkedIn": "https://linkedin.com/in/john"}
+                            {"Name": "John Smith", "Title": "CEO", "Email": "john.smith@example.com", "LinkedIn": "https://linkedin.com/in/john"},
+                            {"Name": "Watson", "Title": "VP of sales", "Email": "watson@example.com", "LinkedIn": "https://linkedin.com/in/waston"},
+                            #Other senior people name, title email, linkedin
+                            
                         ],
                         "Twitter/X": {"URL": "https://twitter.com/example", "# of posts": 200, "# of followers": 10000, "Summary": "Tech innovations."},
                         "Instagram": {"URL": "https://instagram.com/example", "# of posts": 150, "# of followers": 8000, "Summary": "Visual highlights."},
