@@ -465,25 +465,43 @@ def create_llm(model_name):
 
 def similar_comapnies_url_find(url, model_name):
     llm = create_llm(model_name)
+    
     company_analysis_agent = Agent(
-        role="Company Similarity Analyst",
-        goal="Analyze the given company URL and identify similar companies.",
+        role="Company Research Analyst",
+        goal="Research the given company and identify similar companies.",
         verbose=True,
         memory=True,
         llm=llm,
         backstory=(
-            "A specialist in company analysis and market research, "
-            "skilled in identifying competitors and similar businesses."
+            "An expert in company research, skilled in uncovering detailed insights about businesses "
+            "and identifying similar companies in the market."
         ),
         tools=[SerperDevTool(), ScrapeWebsiteTool()]
     )
     
+    # Task 1: Research the company
+    company_research_task = Task(
+        description=(
+            f"Research the company at {url} and provide a detailed analysis. "
+            "Identify the industry, key services/products, target audience, and other distinguishing features. "
+            "Your output should be a JSON object in the following format:\n\n"
+            "{\n"
+            "  \"industry\": \"<industry>\",\n"
+            "  \"services\": [\"service1\", \"service2\"],\n"
+            "  \"key_features\": [\"feature1\", \"feature2\"]\n"
+            "}"
+        ),
+        expected_output=(
+            "A JSON dictionary containing the company's industry, services, and key features."
+        ),
+        agent=company_analysis_agent,
+    )
+    
+    # Task 2: Find similar companies
     similar_companies_task = Task(
         description=(
-            f"Analyze the company URL {url} and identify companies that are "
-            "similar in terms of industry, size, or offerings. Use available online resources "
-            f"to compile a list of {st.session_state.comp_num} similar companies' URLs. "
-            "give similar companies you find a link to their main website."
+            "Using the analysis from the previous task, identify companies that are "
+            f"similar in terms of industry, size, or offerings. Compile a list  of {st.session_state.comp_num} companies of their website URLs. "
             "Your output should be a JSON object in the following format:\n\n"
             "{\n"
             "  \"similar_companies\": [\n"
@@ -494,21 +512,21 @@ def similar_comapnies_url_find(url, model_name):
             "}"
         ),
         expected_output=(
-            f"A JSON dictionary containing a list  of URLs for {st.session_state.comp_num} companies similar to the given company."
+            "A JSON dictionary containing a list of URLs for similar companies."
         ),
         agent=company_analysis_agent,
     )
-
+    
     # Create crew
     crew = Crew(
         agents=[company_analysis_agent],
-        tasks=[similar_companies_task],
+        tasks=[company_research_task, similar_companies_task],
         process=Process.sequential
     )
-
+    
     # Execute crew
     result = crew.kickoff()
-
+    
     try:
         # Parse the analyzer's response as JSON
         extracted_info = re.findall(r'"https?://[^"]+"', str(result)) 
