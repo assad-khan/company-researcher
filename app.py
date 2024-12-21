@@ -564,7 +564,7 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
                 results.append(info)
         except Exception as e:
             st.error(f"Error processing URL {url}: {e}")
-    if st.session_state.s_c == 'Find Similar Companies':
+    if input_way_data == 'Find Similar Companies':
         try:
             viewer = CompanyViewer(results)
             viewer.render()
