@@ -615,6 +615,8 @@ def main():
     find_similar_selected = st.checkbox("Find Similar Companies")
     if find_similar_selected is True:
         st.session_state.s_c = find_similar_selected
+    else:
+        st.session_state.s_c = None
     
     if not excel_file_selected and not give_input_selected:
         st.error("You must select at least one option from 'Excel File' or 'Give Input'.")
@@ -669,7 +671,7 @@ def main():
                 )
 
                 # Display results
-                st.write("Extracted Business Intelligence:")
+                # st.write("Extracted Business Intelligence:")
                 if find_similar_selected is not True:
                     st.dataframe(results_df)
             except Exception as e:
