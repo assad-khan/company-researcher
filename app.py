@@ -451,6 +451,7 @@ class BusinessIntelligenceScraper:
             return {}
         
 def create_llm(model_name):
+    try:
         if model_name == "llama3.2":
             return ChatOpenAI(
                 model="ollama/llama3.2",
@@ -461,7 +462,12 @@ def create_llm(model_name):
             return LLM(model="groq/llama-3.2-1b-preview", 
                        api_key=st.session_state.groq_api_key)
         
+        # Default case: gpt-4o-mini
         return ChatOpenAI(model="gpt-4o-mini")
+    except Exception as e:
+        st.error(f"An unexpected error occurred while creating the LLM: {e}")
+        return None 
+
 
 def similar_comapnies_url_find(url, model_name):
     llm = create_llm(model_name)
@@ -601,6 +607,7 @@ def main():
         os.environ["SERPER_API_KEY"] = serper_api_key
     else:
         st.error("Please provide a Serper API key")
+    similar_company = None
     st.session_state.agent_goal = st.text_area("Edit agent goal as you want", value='''Conduct an in-depth analysis of company to extract key financials, employee details, tech stack, services, competitors, and other relevant information. If direct data is unavailable, provide educated estimates based on industry standards and similar companies.''')
     st.write("Select any two options, but one must be from the first two.")
     excel_file_selected = st.checkbox("Excel File")
