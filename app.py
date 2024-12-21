@@ -564,11 +564,12 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
                 results.append(info)
         except Exception as e:
             st.error(f"Error processing URL {url}: {e}")
-    try:
-        viewer = CompanyViewer(results)
-        viewer.render()
-    except Exception as e:
-        st.error(f"Error rendering company viewer: {e}")
+    if st.session_state.s_c == 'Find Similar Companies':
+        try:
+            viewer = CompanyViewer(results)
+            viewer.render()
+        except Exception as e:
+            st.error(f"Error rendering company viewer: {e}")
     return pd.DataFrame(results)
 
 def main():
