@@ -655,31 +655,66 @@ def main():
     
             
     if st.button("Extract Business Intelligence"):
-        with st.spinner('Processing URLs...'):
-            process_output_expander = st.expander("Processing Output:")
-            sys.stdout = StreamToExpander(process_output_expander)
-            try:
-                results_df = process_urls(urls, model_name, similar_company)
-
-                output = BytesIO()
-                results_df.to_excel(output, index=False, engine='openpyxl')
-                output.seek(0)
-
-                # Create download button
-                st.download_button(
-                    label="Download Results",
-                    data=output,
-                    file_name="business_intelligence_results.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-
-                # Display results
-                # st.write("Extracted Business Intelligence:")
-                if find_similar_selected is not True:
-                    st.dataframe(results_df)
-            except Exception as e:
-                # st.error(f"An error occurred: {str(e)}")
-                pass   
+        # Create a progress bar and status text placeholder
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        # Create process output expander
+        process_output_expander = st.expander("Processing Output:")
+        sys.stdout = StreamToExpander(process_output_expander)
+        
+        try:
+            # Calculate total number of URLs
+            total_urls = len(urls)
+            
+            def process_url_with_progress(url_index, url):
+                # Calculate and update progress
+                progress = int((url_index + 1) / total_urls * 100)
+                progress_bar.progress(progress)
+                status_text.text(f"Processing URL {url_index + 1}/{total_urls} ({progress}% complete)")
+                
+                # Process the URL
+                scraper = BusinessIntelligenceScraper(model_name, similar_company)
+                try:
+                    return scraper.process_url(url)
+                except Exception as e:
+                    return None
+            
+            # Process URLs with progress tracking
+            results = []
+            for i, url in enumerate(urls):
+                result = process_url_with_progress(i, url)
+                if result:
+                    results.append(result)
+            
+            # Set progress to 100% when complete
+            progress_bar.progress(100)
+            status_text.text("Processing complete! (100%)")
+            
+            # Convert results to DataFrame
+            results_df = pd.DataFrame(results)
+            
+            # Create Excel output
+            output = BytesIO()
+            results_df.to_excel(output, index=False, engine='openpyxl')
+            output.seek(0)
+            
+            # Create download button
+            st.download_button(
+                label="Download Results",
+                data=output,
+                file_name="business_intelligence_results.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            # Display results
+            if find_similar_selected is not True:
+                st.dataframe(results_df)
+                
+        except Exception as e:
+            progress_bar.empty()
+            status_text.empty()
+            pass  
 
 
 if __name__ == "__main__":
