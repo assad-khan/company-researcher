@@ -563,13 +563,15 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
             if info:
                 results.append(info)
         except Exception as e:
-            st.error(f"Error processing URL {url}: {e}")
+            # st.error(f"Error processing URL {url}: {e}")
+            pass
     if input_way_data == 'Find Similar Companies':
         try:
             viewer = CompanyViewer(results)
             viewer.render()
         except Exception as e:
-            st.error(f"Error rendering company viewer: {e}")
+            # st.error(f"Error rendering company viewer: {e}")
+            pass
     return pd.DataFrame(results)
 
 def main():
@@ -676,7 +678,8 @@ def main():
                 if find_similar_selected is not True:
                     st.dataframe(results_df)
             except Exception as e:
-                st.error(f"An error occurred: {str(e)}")   
+                # st.error(f"An error occurred: {str(e)}")
+                pass   
 
 
 if __name__ == "__main__":
