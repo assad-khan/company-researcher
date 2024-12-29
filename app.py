@@ -468,7 +468,6 @@ def create_llm(model_name):
         st.error(f"An unexpected error occurred while creating the LLM: {e}")
         return None 
 
-
 def similar_comapnies_url_find(url, model_name):
     llm = create_llm(model_name)
     
@@ -543,8 +542,12 @@ def similar_comapnies_url_find(url, model_name):
         st.error(f"Failed to parse JSON response: {str(e)}")
 
     return extracted_info
-    
-def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFrame:
+
+def process_urls(urls: List[str],
+                 model_name: str,
+                 input_way_data, 
+                 my_bar
+                 ) -> pd.DataFrame:
     """Process multiple URLs and return results as a DataFrame."""
     input_urls = urls
     scraper = BusinessIntelligenceScraper(model_name, input_way_data)
@@ -555,16 +558,22 @@ def process_urls(urls: List[str], model_name: str, input_way_data) -> pd.DataFra
             st.success(f'links: {input_urls}')
             if not urls:
                 st.warning('No similar company find')
-    
+    my_bar.progress(10)
     results = []
-    for url in input_urls:
+    total_urls = len(input_urls)
+    p_num = int(90/total_urls)
+    bb = 10
+    for url in (input_urls):
+        bb += p_num
         try:
             info = scraper.process_url(url)
             if info:
                 results.append(info)
+        
         except Exception as e:
             # st.error(f"Error processing URL {url}: {e}")
             pass
+        my_bar.progress(bb)
     if input_way_data == 'Find Similar Companies':
         try:
             viewer = CompanyViewer(results)
@@ -655,50 +664,17 @@ def main():
     
             
     if st.button("Extract Business Intelligence"):
-        # Create a progress bar and status text placeholder
-        progress_bar = st.progress(0)
-        status_text = st.empty()
         
-        # Create process output expander
+        progress_bar = st.progress(2)
         process_output_expander = st.expander("Processing Output:")
         sys.stdout = StreamToExpander(process_output_expander)
-        
         try:
-            # Calculate total number of URLs
-            total_urls = len(urls)
-            
-            def process_url_with_progress(url_index, url):
-                # Calculate and update progress
-                progress = int((url_index + 1) / total_urls * 100)
-                progress_bar.progress(progress)
-                status_text.text(f"Processing URL {url_index + 1}/{total_urls} ({progress}% complete)")
-                
-                # Process the URL
-                scraper = BusinessIntelligenceScraper(model_name, similar_company)
-                try:
-                    return scraper.process_url(url)
-                except Exception as e:
-                    return None
-            
-            # Process URLs with progress tracking
-            results = []
-            for i, url in enumerate(urls):
-                result = process_url_with_progress(i, url)
-                if result:
-                    results.append(result)
-            
-            # Set progress to 100% when complete
-            progress_bar.progress(100)
-            status_text.text("Processing complete! (100%)")
-            
-            # Convert results to DataFrame
-            results_df = pd.DataFrame(results)
-            
-            # Create Excel output
+            results_df = process_urls(urls, model_name, similar_company, progress_bar)
+
             output = BytesIO()
             results_df.to_excel(output, index=False, engine='openpyxl')
             output.seek(0)
-            
+
             # Create download button
             st.download_button(
                 label="Download Results",
@@ -706,14 +682,13 @@ def main():
                 file_name="business_intelligence_results.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
-            
+
             # Display results
+            # st.write("Extracted Business Intelligence:")
             if find_similar_selected is not True:
                 st.dataframe(results_df)
-                
         except Exception as e:
-            progress_bar.empty()
-            status_text.empty()
+            # st.error(f"An error occurred: {str(e)}")
             pass  
 
 
