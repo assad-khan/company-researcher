@@ -12,6 +12,9 @@ from spider import Spider
 import sys
 import re
 
+
+all_data_txt = ''
+
 def is_valid_url(url: str) -> bool:
     parsed = urlparse(url)
     return bool(parsed.netloc) and bool(parsed.scheme)
@@ -213,6 +216,7 @@ class BusinessIntelligenceScraper:
             backstory='''I am a specialized web crawler that fetches content from webpages.
             I ensure the content is properly extracted and formatted for analysis.''',
             llm=llm,
+            max_iter=5,
             tools=[crawl_webpage],
             verbose=True
         )
@@ -230,6 +234,7 @@ class BusinessIntelligenceScraper:
             verbose=True,
             memory=True,
             llm=llm,
+            max_iter=5,
             tools=[SerperDevTool(), crawl_webpage],
             backstory=(
                 "An expert in online data aggregation and analysis, "
@@ -423,7 +428,7 @@ class BusinessIntelligenceScraper:
             
     def process_url(self, url: str) -> Dict:
         agent_list, task_list = self.create_tasks(url)
-        
+        global all_data_txt
         # Create crew
         crew = Crew(
             agents=agent_list,
@@ -433,21 +438,22 @@ class BusinessIntelligenceScraper:
 
         # Execute crew
         result = crew.kickoff()
+        all_data_txt += str(result) + '\n'
 
         try:
             # Parse the analyzer's response as JSON
             if st.session_state.s_c == 'Find Similar Companies':
                 extracted_info = re.findall(r'\{.*?\]\}', str(result).replace('\n', '')) 
                 if extracted_info:
-                    extracted_info = eval(extracted_info[0])
-                    return extracted_info
+                    extracted_info = eval(extracted_info[0]) 
+                    return extracted_info 
 
             else:
                 extracted_info = eval(str(result).replace('```json', '').replace('```', '').strip())
                 return extracted_info
                 
         except json.JSONDecodeError as e:
-            st.error(f"Failed to parse JSON response: {str(e)}")
+            # st.error(f"Failed to parse JSON response: {str(e)}")
             return {}
         
 def create_llm(model_name):
@@ -477,6 +483,7 @@ def similar_comapnies_url_find(url, model_name):
         verbose=True,
         memory=True,
         llm=llm,
+        max_iter=5,
         backstory=(
             "An expert in company research, skilled in uncovering detailed insights about businesses "
             "and identifying similar companies in the market."
@@ -512,7 +519,6 @@ def similar_comapnies_url_find(url, model_name):
             "  \"similar_companies\": [\n"
             "    \"https://example1.com\",\n"
             "    \"https://example2.com\",\n"
-            "    \"https://example3.com\"\n"
             "  ]\n"
             "}"
         ),
@@ -542,6 +548,26 @@ def similar_comapnies_url_find(url, model_name):
         st.error(f"Failed to parse JSON response: {str(e)}")
 
     return extracted_info
+
+def save_and_provide_download_link(results):
+    try:
+        filename = "Result_data.txt"
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(str(results))
+        
+        with open(filename, "rb") as f:
+            st.download_button(
+                label="Download Results",
+                data=f,
+                file_name=filename,
+                mime="text/plain"
+            )
+        # if os.path.exists(filename):
+        #     os.remove(filename)
+    except IOError as e:
+        st.error(f"File I/O error: {e}")
+    except Exception as e:
+        st.error(f"Failed to save and provide download link: {e}")
 
 def process_urls(urls: List[str],
                  model_name: str,
@@ -574,13 +600,9 @@ def process_urls(urls: List[str],
             # st.error(f"Error processing URL {url}: {e}")
             pass
         my_bar.progress(bb)
-    if input_way_data == 'Find Similar Companies':
-        try:
-            viewer = CompanyViewer(results)
-            viewer.render()
-        except Exception as e:
-            # st.error(f"Error rendering company viewer: {e}")
-            pass
+    if results:
+        with open('results.json', 'w') as f:
+            json.dump(results, f)
     return pd.DataFrame(results)
 
 def main():
@@ -641,7 +663,7 @@ def main():
             urls = st.text_area("Enter URLs (one per line)", value="https://www.example.com\nhttps://www.example.com")            
         if find_similar_selected is True:
             similar_company = 'Find Similar Companies'
-    st.session_state.comp_num = st.number_input("Number of similar companies to extract", min_value=1, max_value=10, value=1)
+    st.session_state.comp_num = st.number_input("Number of similar companies to extract", min_value=2, max_value=10, value=2)
 
     if excel_file_selected and uploaded_file is not None:
         try:
@@ -670,27 +692,43 @@ def main():
         sys.stdout = StreamToExpander(process_output_expander)
         try:
             results_df = process_urls(urls, model_name, similar_company, progress_bar)
+            if all_data_txt:
+                save_and_provide_download_link(all_data_txt)
+            
+                
+            # output = BytesIO()
+            # results_df.to_excel(output, index=False, engine='openpyxl')
+            # output.seek(0)
 
-            output = BytesIO()
-            results_df.to_excel(output, index=False, engine='openpyxl')
-            output.seek(0)
-
-            # Create download button
-            st.download_button(
-                label="Download Results",
-                data=output,
-                file_name="business_intelligence_results.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+            # # Create download button
+            # st.download_button(
+            #     label="Download Results",
+            #     data=output,
+            #     file_name="business_intelligence_results.xlsx",
+            #     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            # )
 
             # Display results
             # st.write("Extracted Business Intelligence:")
-            if find_similar_selected is not True:
-                st.dataframe(results_df)
+            # if find_similar_selected is not True:
+            #     st.dataframe(results_df)
+            
         except Exception as e:
             # st.error(f"An error occurred: {str(e)}")
             pass  
-
-
+    ot_results = None
+    if os.path.exists("results.json"):
+        with open("results.json", "r", encoding="utf-8") as f:
+            ot_results = json.load(f)
+        if ot_results:
+            
+            if similar_company == 'Find Similar Companies':
+                try:
+                    viewer = CompanyViewer(ot_results)
+                    viewer.render()
+                except Exception as e:
+                    # st.error(f"Error rendering company viewer: {e}")
+                    pass
+            
 if __name__ == "__main__":
     main()
