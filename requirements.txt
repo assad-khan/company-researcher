@@ -2,6 +2,6 @@ streamlit
 spider-client
 pandas
 openpyxl
-crewai
+crewai==0.86.0
 langchain
-crewai-tools
+crewai-tools==0.17.0
