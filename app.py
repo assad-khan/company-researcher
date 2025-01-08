@@ -33,6 +33,7 @@ def crawl_webpage(url: str) -> str:
     spider = Spider()
     crawl_params = {
         'limit': 1,
+        'proxy_enabled': True,
         'fetch_page_content': True,
         'metadata': False,
         'return_format': 'markdown'
@@ -72,11 +73,11 @@ class CompanyViewer:
         
         :param data: Dictionary containing company information.
         """
-        self.companies = data 
+        self.companies = data
         if 'company_data' not in st.session_state:
             st.session_state.company_data = None
             st.session_state.current_page = 1
-    
+
     @staticmethod
     def _format_attribute_name(attr):
         """
@@ -88,7 +89,7 @@ class CompanyViewer:
         words = attr.split('_')
         formatted_words = [word.capitalize() for word in words]
         return ' '.join(formatted_words)
-    
+
     @staticmethod
     def _flatten_dict(d, parent_key='', sep='_'):
         """
@@ -109,6 +110,7 @@ class CompanyViewer:
             else:
                 items.append((new_key, str(v) if v is not None else 'N/A'))
         return dict(items)
+
     def _company_to_dataframe(self, company):
         """
         Convert a company dictionary to a flat key-value DataFrame.
@@ -121,86 +123,98 @@ class CompanyViewer:
         df.index = [self._format_attribute_name(idx) for idx in df.index]
         df.index.name = 'Attribute'
         return df.reset_index()
-    
+
     def render(self):
         """
         Render the Streamlit interface for viewing company data.
         """
-        # Custom CSS
-        st.markdown("""
-        <style>
-        .stDataFrame {
-            width: 100%;
-            background-color: #f0f2f6;
-            border-radius: 10px;
-        }
-        .stDataFrame th {
-            background-color: #3498db;
-            color: white !important;
-            word-break: break-word;
-            white-space: normal;
-        }
-        .stDataFrame tr:nth-child(even) {
-            background-color: #f1f3f6;
-        }
-        .stDataFrame tr:hover {
-            background-color: #e6e6e6;
-        }
-        .stDataFrame td {
-            word-break: break-word !important;
-            white-space: normal !important;
-            max-width: 300px;
-            overflow-wrap: break-word;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-        
+        # Initialize session states
+        if 'current_page' not in st.session_state:
+            st.session_state.current_page = 1
+
         # Company selection
         selected_company_name = st.selectbox(
-            "Select a Company", 
+            "Select a Company",
             [company['Company name'] for company in self.companies]
         )
-        
+
         # Find selected company
         selected_company = next(
-            (company for company in self.companies if company['Company name'] == selected_company_name), 
+            (company for company in self.companies if company['Company name'] == selected_company_name),
             None
         )
-        
+
         # Update session state if company changes
-        if selected_company != st.session_state.company_data:
+        if selected_company != st.session_state.get('company_data'):
             st.session_state.company_data = selected_company
             st.session_state.current_page = 1
-        
+
         if selected_company:
             df = self._company_to_dataframe(selected_company)
-            
-            # Pagination
+
+            # Pagination logic
             items_per_page = 10
             total_items = len(df)
             total_pages = max(1, (total_items + items_per_page - 1) // items_per_page)
+
+            # Define callback functions for buttons
+            def handle_prev():
+                st.session_state.current_page -= 1
+                
+            def handle_next():
+                st.session_state.current_page += 1
+                
+            def handle_page(page):
+                st.session_state.current_page = page
+
+            # Create a container for pagination
+            pagination_container = st.container()
             
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col1:
-                if st.button("Previous Page", key="prev_page", 
-                             disabled=st.session_state.current_page <= 1):
-                    st.session_state.current_page -= 1
-            with col2:
-                st.write(f"Page {st.session_state.current_page} of {total_pages}")
-            with col3:
-                if st.button("Next Page", key="next_page", 
-                             disabled=st.session_state.current_page >= total_pages):
-                    st.session_state.current_page += 1
-            
-            st.session_state.current_page = max(1, min(st.session_state.current_page, total_pages))
+            with pagination_container:
+                cols = st.columns([1] * (total_pages + 2), gap="small")
+
+                # Previous button
+                with cols[0]:
+                    st.button(
+                        "❮",
+                        key="prev",
+                        on_click=handle_prev,
+                        disabled=st.session_state.current_page <= 1,
+                        use_container_width=True
+                    )
+
+                # Page number buttons
+                for page_num in range(1, total_pages + 1):
+                    with cols[page_num]:
+                        st.button(
+                            str(page_num),
+                            key=f"page_{page_num}",
+                            on_click=handle_page,
+                            args=(page_num,),
+                            type="primary" if page_num == st.session_state.current_page else "secondary",
+                            use_container_width=True
+                        )
+
+                # Next button
+                with cols[-1]:
+                    st.button(
+                        "❯",
+                        key="next",
+                        on_click=handle_next,
+                        disabled=st.session_state.current_page >= total_pages,
+                        use_container_width=True
+                    )
+
+            # Display the current page data
             start_idx = (st.session_state.current_page - 1) * items_per_page
             end_idx = min(start_idx + items_per_page, total_items)
-            
+
             st.dataframe(
                 df.iloc[start_idx:end_idx],
                 hide_index=True,
                 use_container_width=True,
             )
+
 
 class BusinessIntelligenceScraper:
     def __init__(self, model_name: str, input_way: str):
@@ -216,7 +230,8 @@ class BusinessIntelligenceScraper:
             backstory='''I am a specialized web crawler that fetches content from webpages.
             I ensure the content is properly extracted and formatted for analysis.''',
             llm=llm,
-            max_iter=5,
+            max_iter=3,
+            max_execution_time=60,
             tools=[crawl_webpage],
             verbose=True
         )
@@ -226,6 +241,8 @@ class BusinessIntelligenceScraper:
             backstory="You are an AI skilled in corporate intelligence, capable of extracting detailed information from multiple data sources, with a focus on providing accurate and organized insights for business analysis. You're especially good at making reasonable estimates when direct data isn't available.",
             tools=[SerperDevTool(), ScrapeWebsiteTool()],
             verbose=True,
+            max_iter=3,
+            max_execution_time=60,
             llm=llm
         )
         company_research_agent = Agent(
@@ -234,7 +251,8 @@ class BusinessIntelligenceScraper:
             verbose=True,
             memory=True,
             llm=llm,
-            max_iter=5,
+            max_iter=3,
+            max_execution_time=60,
             tools=[SerperDevTool(), crawl_webpage],
             backstory=(
                 "An expert in online data aggregation and analysis, "
@@ -483,7 +501,8 @@ def similar_comapnies_url_find(url, model_name):
         verbose=True,
         memory=True,
         llm=llm,
-        max_iter=5,
+        max_iter=3,
+        max_execution_time=60,
         backstory=(
             "An expert in company research, skilled in uncovering detailed insights about businesses "
             "and identifying similar companies in the market."
