@@ -4,15 +4,18 @@ from crewai import Agent, Task, Crew, Process, LLM
 from crewai_tools import tool, SerperDevTool, ScrapeWebsiteTool
 import json
 from typing import Dict, List
-from io import BytesIO
+# from io import BytesIO
 import os
 from urllib.parse import urlparse
 from langchain_openai import ChatOpenAI 
 from spider import Spider
 import sys
 import re
+import toml
 
 
+
+secrets = toml.load("secrets.toml")
 all_data_txt = ''
 
 def is_valid_url(url: str) -> bool:
@@ -215,11 +218,14 @@ class CompanyViewer:
                 use_container_width=True,
             )
 
-
 class BusinessIntelligenceScraper:
     def __init__(self, model_name: str, input_way: str):
         self.model_name = model_name
         self.input_way = input_way
+        if model_name == "Groq":
+            self.llm_api_calls = 5
+        else:
+            self.llm_api_calls = None
 
     def create_agents(self):
         llm = create_llm(self.model_name)
@@ -231,6 +237,7 @@ class BusinessIntelligenceScraper:
             I ensure the content is properly extracted and formatted for analysis.''',
             llm=llm,
             max_iter=3,
+            max_rpm=self.llm_api_calls,
             max_execution_time=60,
             tools=[crawl_webpage],
             verbose=True
@@ -240,6 +247,7 @@ class BusinessIntelligenceScraper:
             goal=st.session_state.agent_goal,
             backstory="You are an AI skilled in corporate intelligence, capable of extracting detailed information from multiple data sources, with a focus on providing accurate and organized insights for business analysis. You're especially good at making reasonable estimates when direct data isn't available.",
             tools=[SerperDevTool(), ScrapeWebsiteTool()],
+            max_rpm=self.llm_api_calls,
             verbose=True,
             max_iter=3,
             max_execution_time=60,
@@ -251,6 +259,7 @@ class BusinessIntelligenceScraper:
             verbose=True,
             memory=True,
             llm=llm,
+            max_rpm=self.llm_api_calls,
             max_iter=3,
             max_execution_time=60,
             tools=[SerperDevTool(), crawl_webpage],
@@ -483,8 +492,7 @@ def create_llm(model_name):
             )
         
         if model_name == "Groq":
-            return LLM(model="groq/llama-3.2-1b-preview", 
-                       api_key=st.session_state.groq_api_key)
+            return LLM(model="groq/llama-3.2-1b-preview")
         
         # Default case: gpt-4o-mini
         return ChatOpenAI(model="gpt-4o-mini")
@@ -641,13 +649,13 @@ def main():
             os.environ["OPENAI_API_KEY"] = open_ai_api_key
         else:
             st.error("Please provide an OpenAI API key.")
-            
-    if model_name == "Groq":
-        groq_api_key = st.text_input("Groq API Key", type="password")
-        if groq_api_key:
-            st.session_state.groq_api_key = groq_api_key
-        else:
-            st.error("Please provide a Groq API key.")
+    os.environ['GROQ_API_KEY'] = secrets['GROQ_API_KEY']
+    # if model_name == "Groq":
+    #     groq_api_key = st.text_input("Groq API Key", type="password")
+    #     if groq_api_key:
+    #         st.session_state.groq_api_key = groq_api_key
+    #     else:
+    #         st.error("Please provide a Groq API key.")
 
     spider_api_key = st.text_input("Spider Crawl API Key", type="password")
     if spider_api_key:
