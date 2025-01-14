@@ -13,8 +13,6 @@ import sys
 import re
 import toml
 
-
-
 secrets = toml.load("secrets.toml")
 all_data_txt = ''
 
@@ -224,6 +222,8 @@ class BusinessIntelligenceScraper:
         self.input_way = input_way
         if model_name == "Groq":
             self.llm_api_calls = 5
+        elif model_name == "Gemini":
+            self.llm_api_calls = 15
         else:
             self.llm_api_calls = None
 
@@ -466,18 +466,23 @@ class BusinessIntelligenceScraper:
         # Execute crew
         result = crew.kickoff()
         all_data_txt += str(result) + '\n'
+        result = str(result).replace("null", '"null"')
 
         try:
-            # Parse the analyzer's response as JSON
-            if st.session_state.s_c == 'Find Similar Companies':
-                extracted_info = re.findall(r'\{.*?\]\}', str(result).replace('\n', '')) 
-                if extracted_info:
-                    extracted_info = eval(extracted_info[0]) 
-                    return extracted_info 
-
-            else:
+            try:
                 extracted_info = eval(str(result).replace('```json', '').replace('```', '').strip())
                 return extracted_info
+            except:
+            
+                # Parse the analyzer's response as JSON
+                if st.session_state.s_c == 'Find Similar Companies':
+                    extracted_info = re.findall(r'\{.*?\]\}', str(result).replace('\n', '')) 
+                    if extracted_info:
+                        extracted_info = eval(extracted_info[0]) 
+                        return extracted_info
+                else:
+                    # st.error("Failed to parse JSON response")
+                    return {}
                 
         except json.JSONDecodeError as e:
             # st.error(f"Failed to parse JSON response: {str(e)}")
@@ -494,6 +499,12 @@ def create_llm(model_name):
         if model_name == "Groq":
             return LLM(model="groq/llama-3.2-1b-preview")
         
+        if model_name == "Gemini":
+            return LLM(
+                model="gemini/gemini-1.5-flash",
+                api_key=st.session_state.gemini_api_key
+            )
+        
         # Default case: gpt-4o-mini
         return ChatOpenAI(model="gpt-4o-mini")
     except Exception as e:
@@ -502,6 +513,12 @@ def create_llm(model_name):
 
 def similar_comapnies_url_find(url, model_name):
     llm = create_llm(model_name)
+    if model_name == 'Groq':
+        max_llm_api_calls = 5
+    elif model_name == "Gemini":
+        max_llm_api_calls = 15
+    else:
+        max_llm_api_calls = None
     
     company_analysis_agent = Agent(
         role="Company Research Analyst",
@@ -509,6 +526,7 @@ def similar_comapnies_url_find(url, model_name):
         verbose=True,
         memory=True,
         llm=llm,
+        max_rpm=max_llm_api_calls,
         max_iter=3,
         max_execution_time=60,
         backstory=(
@@ -639,7 +657,7 @@ def main():
     # Model selection switch
     model_name = st.radio(
         "Select AI Model",
-        options=["gpt-4o-mini", "llama3.2", "Groq"],
+        options=["gpt-4o-mini", "llama3.2", "Groq", "Gemini"],
         index=0,
         help="Choose between gpt-4o-mini (default) and llama3.2 from Ollama."
     )
@@ -649,6 +667,13 @@ def main():
             os.environ["OPENAI_API_KEY"] = open_ai_api_key
         else:
             st.error("Please provide an OpenAI API key.")
+    if model_name == "Gemini":
+        gemini_api_key = st.text_input("Gemini API Key", type="password")
+        if gemini_api_key:
+            st.session_state.gemini_api_key = gemini_api_key
+        else:
+            st.error("Please provide a Gemini API key.")
+            
     os.environ['GROQ_API_KEY'] = secrets['GROQ_API_KEY']
     # if model_name == "Groq":
     #     groq_api_key = st.text_input("Groq API Key", type="password")
