@@ -657,7 +657,7 @@ def main():
     # Model selection switch
     model_name = st.radio(
         "Select AI Model",
-        options=["gpt-4o-mini", "llama3.2", "Groq", "Gemini"],
+        options=["Gemini", "llama3.2", "Groq", "gpt-4o-mini"],
         index=0,
         help="Choose between gpt-4o-mini (default) and llama3.2 from Ollama."
     )
@@ -668,11 +668,12 @@ def main():
         else:
             st.error("Please provide an OpenAI API key.")
     if model_name == "Gemini":
-        gemini_api_key = st.text_input("Gemini API Key", type="password")
-        if gemini_api_key:
-            st.session_state.gemini_api_key = gemini_api_key
-        else:
-            st.error("Please provide a Gemini API key.")
+        st.session_state.gemini_api_key = secrets['GEMINI_API_KEY']
+        # gemini_api_key = st.text_input("Gemini API Key", type="password")
+        # if gemini_api_key:
+        #     st.session_state.gemini_api_key = secrets['GEMINI_API_KEY']
+        # else:
+        #     st.error("Please provide a Gemini API key.")
             
     os.environ['GROQ_API_KEY'] = secrets['GROQ_API_KEY']
     # if model_name == "Groq":
