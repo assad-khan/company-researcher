@@ -238,7 +238,7 @@ class BusinessIntelligenceScraper:
             llm=llm,
             max_iter=8,
             max_rpm=self.llm_api_calls,
-            max_execution_time=60,
+            max_execution_time=60*10,
             tools=[crawl_webpage],
             verbose=True
         )
@@ -250,7 +250,7 @@ class BusinessIntelligenceScraper:
             max_rpm=self.llm_api_calls,
             verbose=True,
             max_iter=8,
-            max_execution_time=60,
+            max_execution_time=60*10,
             llm=llm
         )
         company_research_agent = Agent(
@@ -261,7 +261,7 @@ class BusinessIntelligenceScraper:
             llm=llm,
             max_rpm=self.llm_api_calls,
             max_iter=8,
-            max_execution_time=60,
+            max_execution_time=60*10,
             tools=[SerperDevTool(), crawl_webpage],
             backstory=(
                 "An expert in online data aggregation and analysis, "
@@ -528,7 +528,7 @@ def similar_comapnies_url_find(url, model_name):
         llm=llm,
         max_rpm=max_llm_api_calls,
         max_iter=8,
-        max_execution_time=60,
+        max_execution_time=60*10,
         backstory=(
             "An expert in company research, skilled in uncovering detailed insights about businesses "
             "and identifying similar companies in the market."
