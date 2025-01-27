@@ -236,7 +236,7 @@ class BusinessIntelligenceScraper:
             backstory='''I am a specialized web crawler that fetches content from webpages.
             I ensure the content is properly extracted and formatted for analysis.''',
             llm=llm,
-            max_iter=3,
+            max_iter=8,
             max_rpm=self.llm_api_calls,
             max_execution_time=60,
             tools=[crawl_webpage],
@@ -249,7 +249,7 @@ class BusinessIntelligenceScraper:
             tools=[SerperDevTool(), ScrapeWebsiteTool()],
             max_rpm=self.llm_api_calls,
             verbose=True,
-            max_iter=3,
+            max_iter=8,
             max_execution_time=60,
             llm=llm
         )
@@ -260,7 +260,7 @@ class BusinessIntelligenceScraper:
             memory=True,
             llm=llm,
             max_rpm=self.llm_api_calls,
-            max_iter=3,
+            max_iter=8,
             max_execution_time=60,
             tools=[SerperDevTool(), crawl_webpage],
             backstory=(
@@ -527,7 +527,7 @@ def similar_comapnies_url_find(url, model_name):
         memory=True,
         llm=llm,
         max_rpm=max_llm_api_calls,
-        max_iter=3,
+        max_iter=8,
         max_execution_time=60,
         backstory=(
             "An expert in company research, skilled in uncovering detailed insights about businesses "
